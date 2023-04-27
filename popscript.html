@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" type="text/css" href="index.css">
+<link rel="stylesheet" type="text/css" href="styles.css">
+
+<title>Popscript</title>
+<!-- <meta property="og:url" content="https://jgthms.com/web-design-in-4-minutes/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Web Design in 4 minutes">
+<meta property="og:description" content="Learn the basics of web design in 4 minutes with this interactive tutorial.">
+<meta property="og:image" content="https://jgthms.com/web-design-in-4-minutes/learn-web-design-in-4-minutes.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@jgthms">
+<meta name="twitter:creator" content="@jgthms">
+<meta name="twitter:title" content="Web Design in 4 minutes">
+<meta name="twitter:description" content="Learn the basics of web design in 4 minutes with this interactive tutorial.">
+<meta name="twitter:image" content="https://jgthms.com/web-design-in-4-minutes/learn-web-design-in-4-minutes.png"> -->
+
+
+</head>
+<body>
+<header id="header">
+<h1>popscript: A complete object-oriented programming language using only POSIX</h1>
+<p><a href="index.html">Thomas Klijnsma</a></p>
+</header>
+<main>
+<p>This is an introduction to popscript.</p>
+<p>This is a link: <a href="https://tklijnsma.github.io/" title="Title">by Thomas Klijnsma</a> inline link.</p>
+<h2>Overview of syntax</h2>
+<p><code>pop</code> has a simple, Python-inspired syntax. It has a few basic types:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">a</span> <span class="o">=</span> <span class="mi">1</span>  <span class="c1"># a is an integer</span>
+<span class="n">a</span> <span class="o">=</span> <span class="mf">1.</span>  <span class="c1"># a is a float</span>
+<span class="n">a</span> <span class="o">=</span> <span class="s2">&quot;foo&quot;</span>  <span class="c1"># a is a string</span>
+<span class="n">a</span> <span class="o">=</span> <span class="p">[</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;bar&quot;</span> <span class="p">]</span>  <span class="c1"># a is a list</span>
+</code></pre></div>
+
+<p>You can define functions:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">def</span> <span class="nf">my_function</span><span class="p">(</span><span class="n">a</span><span class="p">){</span>
+    <span class="n">a</span> <span class="o">=</span> <span class="n">a</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+    <span class="p">}</span>
+
+<span class="n">my_function</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="mi">3</span>
+</code></pre></div>
+
+<p>and classes:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span> <span class="nc">Animal</span> <span class="p">{</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sound</span><span class="p">){</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sound</span> <span class="o">=</span> <span class="n">sound</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">make_sound</span><span class="p">(</span><span class="bp">self</span><span class="p">){</span>
+        <span class="nb">print</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sound</span><span class="p">)</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+
+<span class="n">cat</span> <span class="o">=</span> <span class="n">Animal</span><span class="p">(</span><span class="s2">&quot;meow&quot;</span><span class="p">)</span>
+<span class="n">cat</span><span class="o">.</span><span class="n">make_sound</span><span class="p">()</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">meow</span>
+</code></pre></div>
+
+<p>Classes have Python-like dunder methods:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span> <span class="nc">Cat</span><span class="p">{</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">claw_length</span><span class="p">){</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">claw_length</span> <span class="o">=</span> <span class="n">claw_length</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span> <span class="fm">__lt__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">){</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">claw_length</span> <span class="o">&lt;</span> <span class="n">other</span><span class="o">.</span><span class="n">claw_length</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">){</span> <span class="k">return</span> <span class="s2">&quot;kitty &quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="p">}</span>
+    <span class="p">}</span>
+
+<span class="n">lenny</span> <span class="o">=</span> <span class="n">Cat</span><span class="p">(</span><span class="s2">&quot;Lenny&quot;</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+<span class="n">bobby</span> <span class="o">=</span> <span class="n">Cat</span><span class="p">(</span><span class="s2">&quot;Bobby&quot;</span><span class="p">,</span> <span class="mi">20</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">lenny</span> <span class="o">&lt;</span> <span class="n">bobby</span> <span class="p">{</span> <span class="n">winner</span> <span class="o">=</span> <span class="n">bobby</span> <span class="p">}</span> <span class="k">else</span> <span class="p">{</span> <span class="n">winner</span> <span class="o">=</span> <span class="n">lenny</span><span class="p">}</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The winner is </span><span class="si">{</span><span class="n">winner</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">The</span> <span class="n">winner</span> <span class="ow">is</span> <span class="n">kitty</span> <span class="n">Bobby</span>
+</code></pre></div>
+
+<p><code>pop</code> can do if-statements, for-loops, and while-loops:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">a</span><span class="o">=</span><span class="mi">4</span>
+<span class="k">if</span> <span class="n">a</span> <span class="o">&lt;</span> <span class="mi">3</span> <span class="p">{</span> <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;a is less than 3&quot;</span><span class="p">)</span> <span class="p">}</span>
+<span class="k">else</span> <span class="p">{</span> <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;a is equal to or greater than 3&quot;</span><span class="p">)</span> <span class="p">}</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">a</span> <span class="ow">is</span> <span class="n">equal</span> <span class="n">to</span> <span class="ow">or</span> <span class="n">greater</span> <span class="n">than</span> <span class="mi">3</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">){</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+    <span class="p">}</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="mi">0</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="mi">1</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="mi">2</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">a</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="k">while</span> <span class="n">a</span> <span class="o">&lt;</span> <span class="mi">4</span> <span class="p">{</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+    <span class="n">a</span> <span class="o">=</span> <span class="n">a</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="p">}</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="mi">0</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="mi">1</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="mi">2</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="mi">3</span>
+</code></pre></div>
+
+<p>Because <code>pop</code> consists of nothing but shell commands under the hood, interop with the shell is easy:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">a</span> <span class="o">=</span> <span class="n">shell</span><span class="p">(</span><span class="s2">&quot;echo &#39;Hello&#39; | sed &#39;s#e#a#g&#39;&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">Hallo</span>
+</code></pre></div>
+
+<p>Try a demo:</p>
+<div class="codehilite"><pre><span></span><code>$<span class="w"> </span>wget<span class="w"> </span>https://raw.githubusercontent.com/tklijnsma/popscript/main/demos/fizzbuzz_oop.pop
+$<span class="w"> </span>pop<span class="w"> </span>fizzbuzz_oop.pop
+<span class="m">1</span>
+<span class="m">2</span>
+fizz!
+<span class="m">4</span>
+buzz!
+fizz!
+<span class="m">7</span>
+<span class="m">8</span>
+fizz!
+buzz!
+<span class="m">11</span>
+fizz!
+<span class="m">13</span>
+<span class="m">14</span>
+fizzbuzz!
+<span class="m">16</span>
+<span class="m">17</span>
+fizz!
+<span class="m">19</span>
+buzz!
+</code></pre></div>
+
+<h2>Why</h2>
+<p>I started working on <code>pop</code> out of annoyance with shell scripting. Have you ever wrote a shell script that calls an API, pipes the output to <code>tr</code> to replace comma's with line breaks or what have you, then <em>that</em> is piped <code>sed</code> to remove trailing whitespace, which is piped to a hard-to-read <code>awk</code> command, which is piped to ...?</p>
+<p>You inevitably run into gotcha's concerning whitespace. And the POSIX builtins, while powerful and performant, are just <em>awkward</em> to use, unless you use these tools every day (which I don't).</p>
+<p>If you're writing a one-off script, Python is great. Just do all your string manipulation in there, and use <code>subprocess</code>. Or find a Python interface for the tool you're using.</p>
+<p>But if you're trying to write something reusable, perhaps a tool that is supposed to work on many platforms and regardless of what Python virtual environment you're in, writing your script in Python limits your portability. You can setup an isolated Python virtual environment every time you install your tool, and then update your <code>.bashrc</code> so you can call the script easily, but that's kind of a hassle and it has its own gotcha's.</p>
+<p>The idea of <code>pop</code> is to be a general-purpose scripting language that is extremely easy to install: Just source <code>pop.sh</code> and run your script. Its aim is to be much easier to write and read than shell scripts, like Python, but avoid the pain of setting up Python environments.</p>
+<p>Also, I read a blog post about recursive descent parsers and I wanted to try something like that. I learned a lot during the development of <code>pop</code>.</p>
+<h2>Status</h2>
+<p><code>pop</code> is slow. Extremely slow. The fizzbuzz-demo above takes about 40 seconds. While I anticipated performance would be an issue, in the current state I unfortunately have to conclude that the development of <code>pop</code> was probably an academic exercise.</p>
+<p>A non-complete list of other things about the language that I didn't get around to implement:</p>
+<ul>
+<li>more string methods (__eq__, __getitem__, split, join, replace)</li>
+<li>a REPL</li>
+<li>an import system</li>
+<li>mechanism for escape chars in str, at least \~, \"</li>
+<li>global keyword</li>
+<li>minimal test suite</li>
+<li>more list methods (__eq__, append, extend, slice)</li>
+<li>booleans</li>
+<li>single quote strings</li>
+<li>basic benchmarking</li>
+<li>+= and the like</li>
+<li>dictionaries</li>
+<li>much better error messages</li>
+<li>delete keyword</li>
+<li>interpreter without any debug statements</li>
+<li>test on different shells (currently only tested in Bash)</li>
+<li>bitwise ops</li>
+<li>multiline strings</li>
+<li>garbage collection</li>
+<li>error handling</li>
+<li>array slicing</li>
+<li>source code minimization</li>
+<li>unpacking tuples for return, for loops, ...</li>
+<li>keyword arguments</li>
+<li>inheritance</li>
+<li>type(...) function</li>
+</ul>
+</main>
+</body>
+</html>
