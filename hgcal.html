@@ -166,7 +166,84 @@ The second update <strong>X0''</strong> is influenced by <strong>X1'</strong>, a
 Hopefully this illustrates how information from further away in the graph can propagate, by repeatedly applying the edge convolution.
 That's an example of <strong>message passing</strong>, of messages being passed node-by-node by repeatedly applying the edge convolution operation.</p>
 <h2>The model</h2>
-<p>WIP.</p>
+<p>With all of the formalism and explanations of edge convolution out of the way, the actual model isn't all that complicated:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span> <span class="nc">ShapeGNN</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Model to recognize basic shapes in N-dimensional point clouds.</span>
+
+<span class="sd">    A model based on a standard subclass of a PyTorch module that</span>
+<span class="sd">    uses consecutive EdgeConv layers (from the PyTorch Geometric</span>
+<span class="sd">    package) in order to learn what basic shapes in a point cloud</span>
+<span class="sd">    look like.</span>
+
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+
+<span class="sd">    input_dim : int</span>
+<span class="sd">        Number of columns of the input data.</span>
+
+<span class="sd">    output_dim : int</span>
+<span class="sd">        Number of columns of the output matrix.</span>
+
+<span class="sd">    hidden_dim : int</span>
+<span class="sd">        Dimension of the hidden (latent) space.</span>
+
+<span class="sd">    k : int</span>
+<span class="sd">        Number of neighbors to generate edges with when running</span>
+<span class="sd">        the k-nearest neighbors algorithm.</span>
+
+<span class="sd">    n_edgeconvs : int</span>
+<span class="sd">        Number of consecutive EdgeConv layers of which the model</span>
+<span class="sd">        should consist.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">output_dim</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">hidden_dim</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span>
+                       <span class="n">k</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span> <span class="n">n_edgeconvs</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="mi">4</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_dim</span> <span class="o">=</span> <span class="n">input_dim</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_dim</span> <span class="o">=</span> <span class="n">output_dim</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hidden_dim</span> <span class="o">=</span> <span class="n">hidden_dim</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_edgeconvs</span> <span class="o">=</span> <span class="n">n_edgeconvs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">k</span> <span class="o">=</span> <span class="n">k</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">embedding</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">input_dim</span><span class="p">,</span> <span class="n">hidden_dim</span><span class="p">),</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">())</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">edgeconvs</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_edgeconvs</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">edgeconvs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">torch_geometric</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">conv</span><span class="o">.</span><span class="n">EdgeConv</span><span class="p">(</span>
+                    <span class="n">nn</span><span class="o">=</span><span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span>
+                        <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">hidden_dim</span><span class="p">,</span> <span class="n">hidden_dim</span><span class="p">),</span>
+                        <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">(),</span>
+                        <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">hidden_dim</span><span class="p">,</span> <span class="n">hidden_dim</span><span class="p">),</span>
+                        <span class="p">),</span>
+                    <span class="n">aggr</span><span class="o">=</span><span class="s1">&#39;mean&#39;</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">output</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">n_edgeconvs</span><span class="o">*</span><span class="n">hidden_dim</span><span class="p">,</span> <span class="n">output_dim</span><span class="p">)</span>
+
+
+    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">torch_geometric</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Data</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">FloatTensor</span><span class="p">:</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">x</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">embedding</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+        <span class="n">intermediate_outputs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">edgeconv</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">edgeconvs</span><span class="p">:</span>
+            <span class="n">edge_index</span> <span class="o">=</span> <span class="n">knn_graph</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">k</span><span class="p">,</span> <span class="n">batch</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">batch</span><span class="p">)</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">edgeconv</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">edge_index</span><span class="o">=</span><span class="n">edge_index</span><span class="p">)</span>
+            <span class="n">intermediate_outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+        <span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">intermediate_outputs</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">x</span>
+</code></pre></div>
+
+<p>The <code>torch_geometic.nn.conv.EdgeConv</code> does most of the heavy lifting for you, all you need to supply it is a little MLP that transforms an edge.
+As you can see I added a little extra (hidden_dim x hidden_dim) matrix to increase the number of trainable weights of the model.</p>
+<p>The edges you regenerate after every EdgeConv layer.
+This is what the word 'dynamic' refers to in the title of the EdgeConv paper.</p>
 <h2>The loss function</h2>
 <p>WIP.</p>
 </main>
