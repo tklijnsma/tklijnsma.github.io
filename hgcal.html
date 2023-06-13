@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" type="text/css" href="index.css">
+<link rel="stylesheet" type="text/css" href="styles.css">
+
+<title>Graph neural networks and point cloud clustering: Particle reconstruction at CERN</title>
+<!-- <title>Graph neural networks and point cloud clustering: Particle reconstruction at CERN</title> -->
+<!-- <meta property="og:url" content="https://tklijnsma.github.io/hgcal.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Graph neural networks and point cloud clustering: Particle reconstruction at CERN">
+<meta property="og:description" content="How do you take over 100000 points, and group them into objects using ML?">
+<meta property="og:image" content="https://tklijnsma.github.io/img/hgcal/hgcal.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="778">
+<meta property="og:image:height" content="604">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="thomasklijnsma">
+<meta name="twitter:creator" content="thomasklijnsma">
+<meta name="twitter:title" content="Graph neural networks and point cloud clustering: Particle reconstruction at CERN">
+<meta name="twitter:description" content="How do you take over 100000 points, and group them into objects using ML?">
+<meta name="twitter:image" content="https://tklijnsma.github.io/img/hgcal/hgcal.png"> -->
+
+</head>
+<body>
+<header id="header">
+<h1>Graph neural networks and point cloud clustering: Particle reconstruction at CERN</h1>
+<p><a href="index.html">By Thomas Klijnsma</a></p>
+</header>
+<main>
+<p><img src="img/wip.png" style="display: block; margin-left: auto; margin-right: auto; max-height: 200px"></p>
+<div style="text-align: center; color: #f9da62"><b>This article is a work in progress. Images and links may be missing.</b></div>
+
+<p><em>In this article I will do a deep dive on GNNs, edge convolution, and custom loss functions for clustering point clouds. In the end I'll show how GNNs could be used for a new detector at CERN, but the techniques are useful for a ton of applications.</em></p>
+<h2>The AI challenge: Particle reconstruction at CERN</h2>
+<p>Before I dive into graph neural networks (GNNs), I want to quickly explain the problem I'm trying to solve.
+If you don't care about CERN and particles, and only want to read about GNNs, feel free to scroll to the next section, this section is really only for context.
+If you do care about the physics, <a href="https://iopscience.iop.org/article/10.1088/1742-6596/2438/1/012090/pdf">here</a> is the paper on it - the text here will be more accessible though.</p>
+<p>Within the CMS detector, folks at CERN are developing the 'High Granularity Calorimeter' (HGCAL), a new ultra precise particle detector that's supposed to last until about 2041 (the foreseen end of the <a href="https://home.cern/resources/faqs/high-luminosity-lhc">HiLumi-LHC program</a>).
+I don't want to go into detector physics too much, but it's an ambitious machine to say the least – in several ways it relies on R&amp;D that isn't there yet.</p>
+<p>The whole CMS detector consists of a bunch of different subdetectors, but whenever I write 'detector' here, I mean HGCAL.
+Here's how it's supposed to work:
+Two protons collide in the middle of the CMS detector.
+A bunch of particles are created, and a lot of them will fly through the detector.</p>
+<p><img src="img/hgcal/detectorlabeled.png" style="display: block; margin-left: auto; margin-right: auto; max-height: 400px"></p>
+<p><em>Adapted from <a href="https://cds.cern.ch/record/2628519">here</a>. Lines and text added by me, and should be considered highly approximate.</em></p>
+<p>The detector is composed of a lot of little silicon hexagon-shaped chips.
+While the particle is traversing the detector, it 'hits' these silicon chips:</p>
+<p><img src="img/hgcal/hits.png" style="display: block; margin-left: auto; margin-right: auto; max-height: 300px"></p>
+<p><em>Adapted from <a href="https://cds.cern.ch/record/2797768">here</a>.</em></p>
+<p>Every time a particle hits a chip, five things are saved: The <strong>x</strong>, <strong>y</strong> and <strong>z</strong> coordinates of the chip, some deposited <strong>energy</strong>, and a <strong>timestamp</strong>.
+This basic 5D data point is called a 'hit'.
+All that our detector really does is measure a long list of hits, or in another words, an array with shape <strong>(N_hits x 5)</strong>.</p>
+<p>At the LHC, we don't just collide a single pair of protons.
+Instead, we collide a bunch of protons into another bunch of protons – in fact, we may end up with about 200 simultaneous proton-proton collisions, all of them spraying particles into our detector.
+The resulting cloud of hits is quite formidable:</p>
+<p><a href="img/hgcal/plotly/unlabeled.html"><img src="img/hgcal/plotly/unlabeled_still.png" style="display: block; margin-left: auto; margin-right: auto; max-height: 400px"></a></p>
+<p><em>Click on the plot for the 3D image. Zoom in to really get a good picture of the number of hits in the point cloud. BTW, this is not a real proton-proton collision, but it's close enough.</em></p>
+<p>The central challenge is: <strong>Take this point cloud</strong> (remember, essentially just a an array with shape (N_hits x 5))<strong>, and turn it back into a list of particles</strong>.
+Or more visually, the challenge is grouping hits together in a single object:</p>
+<p><a href="img/hgcal/plotly/labeled.html"><img src="img/hgcal/plotly/unlab_to_lab.png" style="display: block; margin-left: auto; margin-right: auto; max-height: 400px"></a></p>
+<p>This task of grouping hits is called <strong>reconstruction</strong>, because you're basically trying to 'reconstruct' a particle from a bunch of hits.
+An algorithm that does all the grouping is called a <strong>reconstruction algorithm</strong>.</p>
+<p>This is a simulated example of a single proton-proton-bunch collision, also called <strong>an event</strong>.
+In real life, the LHC is expected to produce one of these monstrously large point clouds <em>every 25 nanoseconds</em>.
+Although a large number of point clouds are thrown out (there is a fast filter called a <em>trigger</em>), it's still quite important that whatever algorithm we come up with is kind of fast.</p>
+<h2>Graph neural networks (GNNs)</h2>
+<p>Writing an algorithm that finds objects in a cloud this is pretty complicated.
+The number of hits in the cloud is variable, the number of particles-to-be-reconstructed is highly variable, and worst of all, there is a high degree of <em>overlap</em> between groups of hits, which is pretty hard to disentangle.
+People are building the detector as I write this, but so far <em>nobody has been able to come up with an actually working algorithm to process the data that the detector will spit out</em>.</p>
+<p>'Classical' algorithms (ones that don't use machine learning) have some limitations, but above all, people are afraid they're simply not going to be fast enough.
+Naturally, some clever physicists started looking for a machine-learning based solution.
+And naturally, they quickly landed on <a href="https://arxiv.org/abs/1801.07829">EdgeConv</a>.
+EdgeConv, short for edge convolution, is a <strong>dynamic graph convolutional neural network</strong>.
+It was a pretty revolutionary invention back in 2018 when it was first published, and we used many of its ideas for our attempt at solving the AI challenge of our detector.
+Because graph neural networks are central to the whole reconstruction task, I'd like to dive a little deeper into them.</p>
+<p>In order to explain how GNNs work, let's first do a slightly less complicated task: Recognizing shapes in point clouds.</p>
+<p><img src="img/hgcal/shapes1.png"></p>
+<p>On the left, you see 291 points in two dimensions, in which there are four shapes hidden: two triangles, a square, and a circle.
+Imagine that we need to create an algorithm that finds and labels all the points that belong to a shape.
+The rest of the points are noise.</p>
+<p>This is a nice example problem because it's pretty easy for a human to do, but quite hard to write a good algorithm for.
+The shapes don't consist of completely straight lines, the number of points per shape can differ, and the angle of the shape is also random.
+There is significant overlap between shapes and other shapes, and between shapes and noise points, further complicating the task.</p>
+<p>Think about how hard it would be to write a classical algorithm for this problem, even though the problem definition and input data is quite straightforward.</p>
+<p>We're going to try and tackle this problem with a graph neural network. I assume some prior knowledge of simple machine learning models, like an MLP, but no prior knowledge of GNNs.</p>
+<h3>Some formalism</h3>
+<p>Let's define <strong>X</strong> to be the coordinates:</p>
+<p><img src="img/hgcal/shapemath1.png" style="display: block; margin-left: auto; margin-right: auto; max-height: 200px"></p>
+<p>With this notation I mean <strong>X</strong> has N rows and 2 columns, so it's an (N, 2) matrix, and the first column represents the x-coordinate and the second column represents the y-coordinate. This will be our <strong>input</strong> to the model.
+In the rest of this section, I want to just go step by step through the separate parts of the GNN.
+In other words, the rest of the section describes all the parts you would encounter if you were to call <code>model.forward(X)</code> on the input matrix in a PyTorch model of the GNN.</p>
+<p>As usual in machine learning, the first thing we want to do is map these input coordinates to higher dimensional latent space, which allows the network to encode more information:</p>
+<p><img src="img/hgcal/shapemath2.png" style="display: block; margin-left: auto; margin-right: auto; max-height: 200px"></p>
+<p>This is a single matrix multiplication with the matrix <strong>emb</strong> (or a single dense layer) to do the conversion to the latent space.
+I am just going to redefine <strong>X</strong> to be the latent space coordinates, since this is what were going to use for the rest of the network. The distinction is just one matrix multiplication anyway.</p>
+<p>So now we have N points in a 16-dimensional space, but it's not exactly a graph yet.
+In order for this thing to be a graph, we need <strong>edges</strong>, connections between points.
+A straightforward way to generate edges is to say: "For every point, create an edge with its closest 8 neighbors".
+This is called the <em>k-nearest neighbors algorithm (kNN)</em> with k=8.</p>
+<p>Clearly which points end up as neighbors depend on the weights in the <strong>emb</strong> matrix, but typically it's not too far off from the edges you would get if you were to just use the two-dimensional input space.
+Here is a plot of the edges you might get:</p>
+<p><img src="img/hgcal/shapes2.png" style="display: block; margin-left: auto; margin-right: auto; max-height: 400px"></p>
+<p>In matrix form, you could write it as:</p>
+<p><img src="img/hgcal/shapemath3.png" style="display: block; margin-left: auto; margin-right: auto; max-height: 200px"></p>
+<p>meaning if apply the function <code>kNN(X)</code>, you get an (<strong>N_edge</strong>,2) matrix that says "point 0 is connected to point 1, point 0 is connected to point 2, etc.".
+In total there are <strong>N_edge</strong> edges (there are much more edges than nodes), so the matrix <strong>E</strong> has <strong>N_edge</strong> rows.</p>
+<p>At this point, it's worth using some more common graph terminology: when used in a graph, points are often called <strong>nodes</strong>, and the 16 latent space dimensions we created at the beginning of this section are called the <strong>node features</strong>.
+So to recap: Every point is a node, every node is connected to other nodes via edges, and every node has 16 node features (which are the latent space coordinates).</p>
+<p>Let's take this matrix, and fill in the actual points instead of just "point 0" or "point 1". We'll call the result the 'edge matrix' <strong>E</strong>:</p>
+<p><img src="img/hgcal/shapemath4.png" style="display: block; margin-left: auto; margin-right: auto; max-height: 200px"></p>
+<p>So the first row of <strong>E</strong> has 32 dimensions: The first 16 values are node features of the 0th node in <strong>X</strong>, and the next 16 values are node features of the 1st node.
+In the second row, the first 16 values are node features of node 0 and the next 16 values are the node features of node 2.
+It's just the matrix from above, but now with the actual node values filled in instead of just the node index.</p>
+<h3>Edge convolution and message passing</h3>
+<p>Now here comes the cool part, the reason why graph neural networks are so powerful.
+In most explanations of 'edge convolution' I found online, the first step is to give the reader a high-level overview of what the intended goal is. The famous cartoon from the EdgeConv paper is this one:</p>
+<p><img src="img/hgcal/edgeconv.png" style="display: block; margin-left: auto; margin-right: auto; max-height: 200px"></p>
+<p><em>Taken from the <a href="https://arxiv.org/abs/1801.07829">EdgeConv paper</a></em></p>
+<p>The overarching idea is to <em>update</em> node features based on the edge features, and the edge features are a function of the initial node features.
+This operation is called <strong>edge convolution</strong>, and if done a few times consecutively information can flow through the graph through the edges.
+That property of information flow is called <strong>message passing</strong>.</p>
+<p>To be honest, initially this high-level view didn't really help me grasp what was actually happening, and I was kind of confused about these elusive 'edge convolution' and 'message passing' terms for a while.</p>
+<p>Here I would like to take an alternative approach: I'm just going to describe the <em>actual steps</em> of edge convolution the way you could implement them in a model, and then once we're done you'll hopefully see why 'edge convolution' is a good name.</p>
+<p>First, let's take the edge matrix <strong>E</strong> above, and pass it through an MLP, called <strong>H</strong> (in line with the symbols used in the EdgeConv paper).
+For simplicity, let's just give our MLP <strong>H</strong> one layer, so we can keep writing everything in terms of matrix multiplications:</p>
+<p><img src="img/hgcal/shapemath5.png" style="display: block; margin-left: auto; margin-right: auto; max-height: 200px"></p>
+<p>Apply an activation function on it too, usually ReLU nowadays, and call the result <strong>E'</strong>:</p>
+<p><img src="img/hgcal/shapemath6.png" style="display: block; margin-left: auto; margin-right: auto; max-height: 200px"></p>
+<p>(using <strong>Ne</strong> now instead of <strong>N_edge</strong>). <strong>E'</strong> has <strong>Ne</strong> rows and 16 columns now.
+Every row 
+The number 16 I chose myself, but of course it's no accident that it's the same number as the number of dimensions in the latent space from the previous section.
+We'll get there in a bit.</p>
+<p>The next operation is a little tricky to explain.
+We're going to <strong>aggregate</strong> all the edges in <strong>E'</strong> per node.
+Let's say we have <em>a part</em> of the graph that looks like this:</p>
+<p><img src="img/hgcal/shapes3.png" style="display: block; margin-left: auto; margin-right: auto; max-height: 300px"></p>
+<p>We select all the rows in <strong>E'</strong> that belong to the edges 0-1, 0-2, 0-3, and 0-4, and we take the <strong>mean</strong> (you could use a different aggregator, like a max or min, but let's stick with mean now):</p>
+<p><img src="img/hgcal/shapemath7.png" style="display: block; margin-left: auto; margin-right: auto; max-height: 300px"></p>
+<p>We then end up with a single row with 16 columns, and I already took the liberty of calling it <strong>X0'</strong>.
+<strong>X0'</strong> is going to be the <strong>updated vector of the original node feature vector X0</strong>.</p>
+<p>This is just for node 0, but you can easily imagine doing this operation for all nodes:</p>
+<p><img src="img/hgcal/shapemath8.png" style="display: block; margin-left: auto; margin-right: auto; max-height: 300px"></p>
+<p>Note how, by taking means over edges, we go from an <strong>(N_edge, 16)</strong> matrix to a <strong>(N, 16)</strong> (where <strong>N</strong>, remember, is the number of nodes).
+The result is <strong>X'</strong>, a <strong>(N, 16)</strong> matrix, i.e. the same shape as <strong>X</strong>, but now with updated values.
+This is EdgeConv, in a basic form.</p>
+<p>Let's summarize what we did so far. We took the initial node values <strong>X</strong> (X0, X1, ...), generated edges with the kNN algorithm, and constructed an edge matrix <strong>E</strong>.
+We then applied an MLP <strong>H</strong> on <strong>E</strong> to get <strong>E'</strong>, and then aggregated over edges to get the update node features <strong>X'</strong>.</p>
+<p>Now let's revisit the initial graphic from the EdgeConv paper:</p>
+<p><img src="img/hgcal/edgeconv2.png" style="display: block; margin-left: auto; margin-right: auto; max-height: 200px"></p>
+<p>The notation is slightly different, but hopefully this graphic makes sense now: You start with initial node values, build edges, aggregate edges, and get an updated node.</p>
+<p>Convolution in the context of machine learning often means a sliding window.
+For example, in Convolutional Neural Nets, you typically try to learn the weights of a window that slides along the input image.
+You could say the following, and hopefully I'm not oversimplifying here:</p>
+<p><em>EdgeConv is just a sliding window convolution, where the sliding window consists of the neighboring nodes.</em></p>
+<p>The 'window' here is just a little bit more abstract (for example the window size, i.e. the number of neighbors, differs per node), but in principle EdgeConv is using a very similar idea as the one from CNN's.</p>
+<p>Finally, before I close off this section, we still have to cover that bit about <strong>message passing</strong>.
+In most models using EdgeConv, you would apply the operation repeatedly:</p>
+<p><img src="img/hgcal/shapemath9.png" style="display: block; margin-left: auto; margin-right: auto; max-height: 200px"></p>
+<p>Imagine that a part of the graph looks like this:</p>
+<p><img src="img/hgcal/shapemath10.png" style="display: block; margin-left: auto; margin-right: auto; max-height: 250px"></p>
+<p>In this little example, the first updated value <strong>X0'</strong> is completely independent of whatever is in <strong>X5</strong>, because there is no edge between node 0 and node 5.
+However, <strong>X1'</strong> <em>is</em> influenced by <strong>X5</strong>.
+The second update <strong>X0''</strong> is influenced by <strong>X1'</strong>, and thus indirectly by <strong>X5</strong>.
+Hopefully this illustrates how information from further away in the graph can propagate, by repeatedly applying the edge convolution.
+That's an example of <strong>message passing</strong>, of messages being passed node-by-node by repeatedly applying the edge convolution operation.</p>
+<h2>The model</h2>
+<p>WIP.</p>
+<h2>The loss function</h2>
+<p>WIP.</p>
+</main>
+</body>
+</html>
